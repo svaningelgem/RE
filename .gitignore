@@ -30,3 +30,4 @@
 /test dll/build
 /tools/vc++filt/build
 /tools/dumpbin/out.txt
+/tools/create stubs/*.exports
