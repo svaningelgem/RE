@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include <string>
+using namespace std;
 
 
 #define BASE(X, name, VIRTUAL) \
@@ -21,20 +23,21 @@ public: \
  \
   int X##publicVar1; \
   int X##publicVar2; \
-  int X##publicFunc1( int a ) { return 0; } \
+  int X##publicFunc1( int a ) const { return 0; } \
   VIRTUAL const char* X##publicFunc2( const char* a, long b ) { return 0; } \
+  static int doSomething() { return 1; } \
  \
 protected: \
   int X##protectedVar1; \
   int X##protectedVar2; \
-  void * X##protectedFunc1( short a ) { return 0; } \
+  void * X##protectedFunc1( string a ) { return 0; } \
   VIRTUAL void X##protectedFunc2( double a ) { return; } \
  \
 private: \
   int X##privateVar1; \
   int X##privateVar2; \
-  VIRTUAL void X##privateFunc1() { return; } \
-  void X##privateFunc2() { return; } \
+  VIRTUAL string X##privateFunc1( short a ) { return ""; } \
+  const string& X##privateFunc2( const string& b ) { static string a; return a; } \
 }
 
 #define BASECLASS(X, name) \
