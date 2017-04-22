@@ -3,7 +3,7 @@
 
   if ( DEBUG ) {
     $_SERVER['argv'] = array(__FILE__);
-    $_SERVER['argv'][] = __DIR__.'/../../test dll/build/Release/testDLL.dll';
+//    $_SERVER['argv'][] = __DIR__.'/../../test dll/build/Release/testDLL.dll';
 	  $_SERVER['argv'][] = 'C:\tmp\ISISP Plugin\ISIS\isiscomm\w3\lib\omsdt57.dll';
 
 	  $_SERVER['argc'] = count($_SERVER['argv']);

@@ -27,7 +27,11 @@
 *.exe
 *.out
 *.app
+
+# Manually added
 /test dll/build
 /tools/vc++filt/build
 /tools/dumpbin/out.txt
-/tools/create stubs/*.exports
+/tools/create stubs/out.txt
+/tools/create stubs/testDLL*
+/tools/create stubs/omsdt57*
