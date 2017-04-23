@@ -40,8 +40,6 @@ function process_dll($dll) {
     $functions[] = new func($line);
   }
 
-  print_r($functions);
-
   output_stubs($cache_directory, $functions);
   
   return true;

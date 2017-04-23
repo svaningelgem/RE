@@ -23,7 +23,8 @@
     public $static_decimal     = '';
     public $static_name        = '';
     public $export_type        = '';
-    public $inheritance        = array();
+    public $depending_on       = array();
+    public $provides           = array();
 
     function __construct($line) {
 #      if ( $line == 'const OmsKeyValueStore::`vftable\'{for `PcsUsageCounter\'}' ) {
@@ -93,7 +94,7 @@
         $this->functionArgs       = $matches[4];
       }
       else { // global function exported
-        echo "$line\n";
+        echo "!! Can't understand: $line\n";
       }
 
       $this->reworkClassName();
@@ -104,12 +105,9 @@
       # static var in function: OK
       # static class var      : OK
       # vtable                : OK
-      # externC               : OK
-      # exported var          : OK
-      # exported func         : OK
-#      if ( $this->export_type == 'function' ) {
-#        print_r($this);
-#      }
+      # externC               : OK -- handled
+      # exported var          : OK -- handled
+      # exported func         : OK -- handled
 
       return $this;
     }
@@ -222,7 +220,24 @@
         $total = $part . ($total == '' ? '' : '::') . $total;
         $tmp = array_diff($tmp, array($total));
       }
-      $this->inheritance = array_values($tmp);
+      $this->depending_on = array_values($tmp);
+    }
+
+    static public function class_convertor($type) {
+      return str_replace('class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >', 'std::string', $type);
+    }
+
+    static public function get_default_return($type) {
+      if ( substr($type, -1) == '*' ) {
+        return 'NULL';
+      }
+      else if ( in_array($type, array('int', 'char', 'short', 'long', 'double')) ) {
+        return '0';
+      }
+      else {
+        echo " --> unrecognized type: '{$type}'\n";
+        exit();
+      }
     }
   }
 
