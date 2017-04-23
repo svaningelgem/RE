@@ -41,6 +41,6 @@ function process_dll($dll) {
   }
 
   output_stubs($cache_directory, $functions);
-  
+
   return true;
 }

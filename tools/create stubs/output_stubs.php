@@ -1,5 +1,65 @@
 <?php
 
+class clazz {
+  /** @var clazz[] **/
+  public $inner = array();
+  /** @var func[] **/
+  public $methods = array();
+
+  function add_subclass($func, $class_hierarchy, &$array = null) {
+    $sub_class = array_shift($class_hierarchy);
+
+    if ( is_null($array) ) {
+      $array = $this;
+    }
+
+    if ( !isset($array->inner[$sub_class]) ) {
+      $array->inner[$sub_class] = new clazz();
+    }
+    $array = $array->inner[$sub_class];
+
+    if ( count($class_hierarchy) == 0 ) {
+      $array->methods[] = $func;
+    }
+    else {
+      $this->add_subclass($func, $class_hierarchy, $array);
+    }
+  }
+
+  function write_to_file($fpHeader, $fpSource, &$statics_in_function = array(), $className = '', $indent = -1) {
+    $front = str_repeat('  ', max(0, $indent));
+
+    if ( $className != '' ) { # first level
+      // Try to guess from the methods if this is a class or a struct
+      $is_class = true;
+      foreach( $this->methods as $func ) {
+        if ( ($func->functionName == 'operator=') && (substr($func->returnValue, 0, 7) == 'struct ') ) {
+          $is_class = false;
+          break;
+        }
+      }
+
+      fwrite($fpHeader, $front.($is_class ? 'class' : 'struct')." LIBRARY_API {$className} {\r\n");
+      fwrite($fpHeader, $front."public:\r\n");
+    }
+
+    // Write inners
+    foreach( $this->inner as $subClassName => $clazz ) {
+      $clazz->write_to_file($fpHeader, $fpSource, $statics_in_function, $subClassName, $indent+1);
+    }
+    // Write methods
+    usort($this->methods, array('func', 'sort_by_access'));
+    $current_access = 'public';
+    foreach( $this->methods as $func ) {
+      $func->write_to_header_file($fpHeader, $indent+1, $current_access);
+      $func->write_to_source_file($fpSource);
+    }
+
+    if ( $className != '' ) { # first level
+      fwrite($fpHeader, $front."};\r\n\r\n");
+    }
+  }
+};
 
 /**
 * Generate C++ stubs
@@ -8,25 +68,42 @@
 * @param func[] $functions
 */
 function output_stubs($cache_directory, $functions) {
-
-  // 1: these are the most easy to write out.
+  // structure[className][inner] > clazz
+  // structure[className][methods] > methods
+  $structure = new clazz();
+  // Temporary storage for later easy retrieval
+  $static_in_function = array();
+  
+  // 1: Write out the easy things to write out.
+  // 2: group everything together in easy to digest things:
+  //   - class structure
+  //   - static vars in function
+  //   - subclasses
+  //   !! Warn for anything else that I might have missed.
   $fp1 = fopen($cache_directory.'/exported.vars.cpp', 'wb');
   $fp2 = fopen($cache_directory.'/externC.cpp', 'wb');
   $fp3 = fopen($cache_directory.'/exported.funcs.cpp', 'wb');
   foreach( $functions as $idx => $func ) {
     if ( $func->export_type == 'exported var' ) {
-      fwrite($fp1, func::class_convertor($func->type)." LIBRARY_API {$func->static_name}\r\n");
-      unset($functions[$idx]);
+      fwrite($fp1, func::class_convertor($func->returnValue)." LIBRARY_API {$func->static_name}\r\n");
     }
     else if ( $func->export_type == 'externC' ) {
       fwrite($fp2, "\r\nextern \"C\" LIBRARY_API void {$func->functionName}( ) {\r\n}\r\n");
-      unset($functions[$idx]);
     }
     else if ( $func->export_type == 'exported func' ) {
       fwrite($fp3, "\r\nLIBRARY_API ".func::class_convertor($func->returnValue)." {$func->functionName}( ".implode(', ', array_map(array('func', 'class_convertor'), $func->functionArgs))." ) {\r\n".
         "  return ".$func::get_default_return($func->returnValue).";\r\n".
         "}\r\n");
-      unset($functions[$idx]);
+    }
+    else if ( $func->export_type == 'static var in function' ) {
+      $static_in_function[] = $func;
+    }
+    else if ( count($func->className) == 0 ) {
+      echo "Unknown how to classify this:\n";
+      print_r($func);
+    }
+    else {
+      $structure->add_subclass($func, $func->className);
     }
   }
   fclose($fp1);
@@ -34,9 +111,11 @@ function output_stubs($cache_directory, $functions) {
   fclose($fp3);
 
   // 2: Now we need to group things together into the class structure.
-  // structure[className]['inner'] > class
-  // structure[className]['methods'] > funcs
-  $structure = array();
-  foreach( $functions as $idx => $func ) {
-  }
+  $fp4 = fopen($cache_directory.'/classes.hpp', 'wb');
+  $fp5 = fopen($cache_directory.'/classes.cpp', 'wb');
+  $structure->write_to_file($fp4, $fp5, $static_in_function);
+  fclose($fp4);
+  fclose($fp5);
+
+#  print_r($structure);
 }
