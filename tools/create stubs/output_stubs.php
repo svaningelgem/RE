@@ -1,11 +1,25 @@
 <?php
 
 class clazz {
+  const DEFAULT_BASE_NAME = '**default';
   /** @var clazz[] **/
   public $inner = array();
   /** @var func[] **/
   public $methods = array();
+  /** @var string[] **/
+  public $vtable  = array();
+  /** @var boolean **/
+  public $has_vbtable = false;
+  /** @var func[] **/
+  public $virtual_functions = array();
 
+  /**
+  * put your comment there...
+  * 
+  * @param func $func
+  * @param string[] $class_hierarchy
+  * @param clazz $array
+  */
   function add_subclass($func, $class_hierarchy, &$array = null) {
     $sub_class = array_shift($class_hierarchy);
 
@@ -19,14 +33,25 @@ class clazz {
     $array = $array->inner[$sub_class];
 
     if ( count($class_hierarchy) == 0 ) {
-      $array->methods[] = $func;
+      if ( $func->export_type == 'vtable' ) {
+        $array->vtable[] = count($func->depending_on) > 0 ? $func->depending_on[0] : self::DEFAULT_BASE_NAME;
+      }
+      else if ( $func->functionName == '`vbase destructor\'' ) {
+        $array->has_vbtable = true;
+      }
+      else {
+        $array->methods[] = $func;
+        if ( $func->is_virtual ) {
+          $array->virtual_functions[] = $func;
+        }
+      }
     }
     else {
       $this->add_subclass($func, $class_hierarchy, $array);
     }
   }
 
-  function write_to_file($fpHeader, $fpSource, &$statics_in_function = array(), $className = '', $indent = -1) {
+  function write_to_file(&$structure, $fpHeader, $fpSource, &$statics_in_function = array(), $className = '', $indent = -1) {
     $front = str_repeat('  ', max(0, $indent));
 
     if ( $className != '' ) { # first level
@@ -39,13 +64,23 @@ class clazz {
         }
       }
 
-      fwrite($fpHeader, $front.($is_class ? 'class' : 'struct')." LIBRARY_API {$className} {\r\n");
+      fwrite($fpHeader, $front.($is_class ? 'class' : 'struct')." LIBRARY_API {$className}\r\n");
+      $has_virtual_inheritance = $this->has_vbtable;
+      $has_default_inheritance = in_array(self::DEFAULT_BASE_NAME, $this->vtable);
+      $baseClasses = array_diff($this->vtable, array(self::DEFAULT_BASE_NAME));
+      $has_inheritance = count($this->vtable) > 0;
+/*
+      foreach( $this->vtable as $baseClass ) {
+        if ( 
+      }
+*/
+      fwrite($fpHeader, $front."{\r\n");
       fwrite($fpHeader, $front."public:\r\n");
     }
 
     // Write inners
     foreach( $this->inner as $subClassName => $clazz ) {
-      $clazz->write_to_file($fpHeader, $fpSource, $statics_in_function, $subClassName, $indent+1);
+      $clazz->write_to_file($structure, $fpHeader, $fpSource, $statics_in_function, $subClassName, $indent+1);
     }
     // Write methods
     usort($this->methods, array('func', 'sort_by_access'));
@@ -113,9 +148,9 @@ function output_stubs($cache_directory, $functions) {
   // 2: Now we need to group things together into the class structure.
   $fp4 = fopen($cache_directory.'/classes.hpp', 'wb');
   $fp5 = fopen($cache_directory.'/classes.cpp', 'wb');
-  $structure->write_to_file($fp4, $fp5, $static_in_function);
+  $structure->write_to_file($structure, $fp4, $fp5, $static_in_function);
   fclose($fp4);
   fclose($fp5);
 
-#  print_r($structure);
+  print_r($structure);
 }
